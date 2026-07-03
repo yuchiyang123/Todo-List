@@ -1,0 +1,35 @@
+services:
+  todo-api:
+    build:
+      context: ./backend
+      dockerfile: TodoList.Api/Dockerfile
+    environment:
+      ConnectionStrings__DefaultConnection: "Data Source=/app/data/todolist.db"
+      Jwt__Issuer: ${JWT_ISSUER}
+      Jwt__Audience: ${JWT_AUDIENCE}
+      Jwt__Key: ${JWT_KEY}
+    volumes:
+      - todo-data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./frontend
+      args:
+        VITE_MINI_SSO_ORIGIN: ${MINI_SSO_ORIGIN:-http://localhost:12080}
+    ports:
+      - "${WEB_PORT:-12090}:80"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      todo-api:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  todo-data:
