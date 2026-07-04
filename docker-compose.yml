@@ -20,8 +20,6 @@ services:
   web:
     build:
       context: ./frontend
-      args:
-        VITE_MINI_SSO_ORIGIN: ${MINI_SSO_ORIGIN:-http://localhost:12080}
     ports:
       - "${WEB_PORT:-12090}:80"
     extra_hosts:

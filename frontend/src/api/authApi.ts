@@ -34,14 +34,14 @@ export async function fetchCurrentUser(): Promise<CurrentUser> {
   return data
 }
 
-// OAuth logins are full-page redirects that Google/GitHub send back to a fixed,
-// pre-registered URL — they must go straight to Mini-SSO's own public origin,
-// not through this app's gateway (proxying would strip the port from the Host
-// header along the way, breaking the registered redirect_uri). Cookies are
-// host-scoped, not port-scoped, so the session Mini-SSO sets here still works
-// once the browser comes back to this app on a different port.
-const MINI_SSO_ORIGIN = import.meta.env.VITE_MINI_SSO_ORIGIN ?? 'http://localhost:12080'
-
+// Kept same-origin (proxied to Mini-SSO by this app's gateway) rather than
+// linking straight at Mini-SSO's own address. The registered OAuth
+// redirect_uri (e.g. https://todo.example.com/signin-google) is this app's
+// own domain, so the whole round-trip — login kick-off, Google/GitHub
+// consent, and the callback back to /signin-google — needs to stay on this
+// origin. That also means the "token"/"XSRF-TOKEN" cookies Mini-SSO sets
+// during the callback are scoped to this domain, not Mini-SSO's, so the
+// session is actually visible once the SPA reloads afterward.
 export function externalLoginUrl(provider: 'google' | 'github'): string {
-  return `${MINI_SSO_ORIGIN}/api/auth/external/${provider}/login`
+  return `/api/auth/external/${provider}/login`
 }
