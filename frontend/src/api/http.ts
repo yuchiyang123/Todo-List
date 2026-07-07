@@ -1,4 +1,10 @@
-import axios from 'axios'
+import axios, { type InternalAxiosRequestConfig } from 'axios'
+
+declare module 'axios' {
+  export interface InternalAxiosRequestConfig {
+    _csrfRetried?: boolean
+  }
+}
 
 export const http = axios.create({
   baseURL: '/api',
@@ -22,3 +28,30 @@ http.interceptors.request.use((config) => {
   }
   return config
 })
+
+// The XSRF-TOKEN cookie can go stale (or get cleared) well before the "token"
+// session cookie does, since nothing here proactively refreshes it after
+// login. When that happens, state-changing requests fail CsrfValidationFilter
+// with 403 even though the user is still logged in. Re-fetch the CSRF cookie
+// once and retry, instead of leaving the action silently no-op'd.
+http.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const { config, response } = error
+    if (response?.status === 403 && config && !config._csrfRetried) {
+      config._csrfRetried = true
+      try {
+        await http.get('/auth/csrf')
+        return http(config)
+      } catch {
+        // fall through to reject with the original error
+      }
+    }
+
+    if (response?.status === 401) {
+      window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`
+    }
+
+    return Promise.reject(error)
+  },
+)
